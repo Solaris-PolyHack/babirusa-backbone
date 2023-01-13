@@ -45,12 +45,13 @@ def reg_log_tg():
     if request.method == 'POST':
         user_dt = json.loads(request.data)
         with DBConnection() as db:
-            result = db.read_once("SELECT * FROM users WHERE user_id = %s", (user_dt['id'],))
+            result = db.read_once("SELECT * FROM users WHERE e_mail = %s AND password = %s",
+                                  (user_dt['e_mail'], user_dt['password']))
         if result is None:
             with DBConnection() as db:
                 db.write_query(
                     "INSERT INTO users (user_token, password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (u_n.token, user_dt['password'], user_dt['password'], user_dt['name'], user_dt['surname'],
+                    (u_n.token(), user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'],
                      user_dt['class']))
         else:
             return json.dumps(result)
@@ -62,12 +63,13 @@ def reg_log_mb():
     if request.method == 'POST':
         user_dt = json.loads(request.data)
         with DBConnection() as db:
-            result = db.read_once("SELECT * FROM users WHERE user_id = %s", (user_dt['id'],))
+            result = db.read_once("SELECT * FROM users WHERE e_mail = %s AND password = %s",
+                                  (user_dt['e_mail'], user_dt['password']))
         if result is None:
             with DBConnection() as db:
                 db.write_query(
                     "INSERT INTO users (user_token, password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (u_n.token, user_dt['password'], user_dt['password'], user_dt['name'], user_dt['surname'],
+                    (u_n.token(), user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'],
                      user_dt['class']))
         else:
             return json.dumps(result)
@@ -83,7 +85,7 @@ def code():
         if results != ():
             with DBConnection() as db:
                 db.write_query("INSERT INTO code_check (user_id, code) VALUES (%s, %s)",
-                               (user_dt['tg_id'], u_n.unique_code))
+                               (user_dt['id'], u_n.unique_code()))
         else:
             return 'login_fall'
     if request.method == 'GET':
