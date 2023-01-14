@@ -55,6 +55,7 @@ def reg_tg():
                 db.write_query(
                     "INSERT INTO users (user_id_tg, name, surname, user_class) VALUES (%s, %s, %s, %s)",
                     (user_dt['tg_id'], user_dt['name'], user_dt['surname'], user_dt['class']))
+            return 'ok'
         else:
             return jsonify(result)
 
@@ -132,10 +133,14 @@ def reg_mb():
                 db.write_query(
                     "INSERT INTO users (password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s)",
                     (user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'], user_dt['class']))
-                db.write_query("INSERT INTO user_tokens (id, token) VALUES (%s, %s)", (user_dt['id'], token))
-            return jsonify({'id': user_dt('id'), 'token': token})
+                result = db.read_once("SELECT * FROM users WHERE e_mail = %s", (user_dt['e_mail'],))
+                db.write_query("INSERT INTO user_tokens (id, token) VALUES (%s, %s)", (result['user_id'], token))
+            # print(result['user_id'] + "::::" + token)
+            # result = token + ":" + str(result['user_id'])
+            return 'ok'
         else:
-            return 'created'
+            # return result
+            return 'no'
 
 
 @app.route('/log_mb', methods=['GET', 'POST'])
@@ -146,7 +151,7 @@ def log_mb():
         with DBConnection() as db:
             result = db.read_once("SELECT * FROM users WHERE e_mail = %s AND password = %s",
                                   (user_dt['e_mail'], user_dt['password']))
-        if result:
+        if result is not None:
             with DBConnection() as db:
                 db.write_query("INSERT INTO user_tokens (id, token) VALUES (%s, %s)", (result['id'], token))
             return jsonify({'user_date': jsonify(result), 'token': token})
@@ -154,14 +159,14 @@ def log_mb():
             return 'log_fall'
 
 
-@app.route('/session', methods=['GET', 'POST'])
-def session():
-    if request.method == 'POST':
-        user_dt = json.loads(request.data)
-        with DBConnection() as db:
-            db.write_query(
-                "INSERT INTO users (password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s)",
-                (user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'], user_dt['class']))
+# @app.route('/session', methods=['GET', 'POST'])
+# def session():
+#     if request.method == 'POST':
+#         user_dt = json.loads(request.data)
+#         with DBConnection() as db:
+#             db.write_query(
+#                 "INSERT INTO users (password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s)",
+#                 (user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'], user_dt['class']))
 
 
 @app.route('/code', methods=['GET', 'POST'])
@@ -182,7 +187,9 @@ def code_check():
                                   (user_dt['code'],))
         if result['id'] is not None:
             with DBConnection() as db:
-                db.write_query("UPDATE code_check SET id = %s WHERE code = %s", (user_dt['tg_id'], user_dt['code']))
+                result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s", (user_dt['tg_id'],))
+                print(result)
+                db.write_query("UPDATE code_check SET id = %s WHERE code = %s", (result['user_id'], user_dt['code']))
             return 'ok'
         else:
             return 'fall'

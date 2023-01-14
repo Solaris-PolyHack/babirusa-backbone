@@ -1,6 +1,6 @@
 from random import randint as r
 token = ''
-token_sym = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*_1234567890'
+token_sym = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890'
 
 
 def unique_code():
@@ -13,5 +13,5 @@ def unique_code():
 def token():
     token = ''
     for i in range(20):
-        token += token_sym[r(0, len(token_sym))]
+        token += token_sym[r(0, len(token_sym) - 1)]
     return token
