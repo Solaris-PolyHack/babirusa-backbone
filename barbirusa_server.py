@@ -5,6 +5,8 @@ from pymysql import connect as db_connect
 import pymysql.cursors
 import json
 from flask_cors import CORS, cross_origin
+from babirusaOperator import launchCodespace
+from threading import Thread
 
 return_res = False
 
@@ -59,7 +61,6 @@ def reg_tg():
         else:
             return jsonify(result)
 
-
 # @app.route('/change_tg', methods=['GET', 'POST'])
 # def change_tg():
 #     if request.method == 'POST':
@@ -75,35 +76,35 @@ def reg_tg():
 #             return 'change_fall'
 
 
-@app.route('/reg_tg_mail', methods=['GET', 'POST'])
-def reg_tg_mail():
-    if request.method == 'POST':
-        user_dt = json.loads(request.data)
-        with DBConnection() as db:
-            result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s", (user_dt['tg_id'],))
-        if result is not None:
-            with DBConnection() as db:
-                db.write_query("UPDATE users SET password = %s, e_mail = %s WHERE id = %s",
-                               (user_dt['password'], user_dt['e_mail'], user_dt['tg_id']))
-            return 'added_successful'
-        else:
-            return 'add_fall'
+# @app.route('/reg_tg_mail', methods=['GET', 'POST'])
+# def reg_tg_mail():
+#     if request.method == 'POST':
+#         user_dt = json.loads(request.data)
+#         with DBConnection() as db:
+#             result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s", (user_dt['tg_id'],))
+#         if result is not None:
+#             with DBConnection() as db:
+#                 db.write_query("UPDATE users SET password = %s, e_mail = %s WHERE id = %s",
+#                                (user_dt['password'], user_dt['e_mail'], user_dt['tg_id']))
+#             return 'added_successful'
+#         else:
+#             return 'add_fall'
 
 
-@app.route('/log_tg_mail', methods=['GET', 'POST'])
-def log_tg_mail():
-    if request.method == 'POST':
-        user_dt = json.loads(request.data)
-        with DBConnection() as db:
-            result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s AND password = %s",
-                                  (user_dt['e_mail'], user_dt['password']))
-        if result is not None:
-            with DBConnection() as db:
-                db.write_query("UPDATE users SET user_id_tg = %s WHERE password = %s, e_mail = %s",
-                               (user_dt['tg_id'], user_dt['password'], user_dt['e_mail']))
-            return 'added_successful'
-        else:
-            return 'add_fall'
+# @app.route('/log_tg_mail', methods=['GET', 'POST'])
+# def log_tg_mail():
+#     if request.method == 'POST':
+#         user_dt = json.loads(request.data)
+#         with DBConnection() as db:
+#             result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s AND password = %s",
+#                                   (user_dt['e_mail'], user_dt['password']))
+#         if result is not None:
+#             with DBConnection() as db:
+#                 db.write_query("UPDATE users SET user_id_tg = %s WHERE password = %s, e_mail = %s",
+#                                (user_dt['tg_id'], user_dt['password'], user_dt['e_mail']))
+#             return 'added_successful'
+#         else:
+#             return 'add_fall'
 
 
 @app.route('/log_tg', methods=['GET', 'POST'])
@@ -124,23 +125,14 @@ def log_tg():
 def reg_mb():
     if request.method == 'POST':
         user_dt = json.loads(request.data)
+        token = u_n.token()
         with DBConnection() as db:
-            result = db.read_once("SELECT * FROM users WHERE e_mail = %s",
-                                  (user_dt['e_mail'],))
-        if result is None:
-            token = u_n.token()
-            with DBConnection() as db:
-                db.write_query(
-                    "INSERT INTO users (password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s)",
-                    (user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'], user_dt['class']))
-                result = db.read_once("SELECT * FROM users WHERE e_mail = %s", (user_dt['e_mail'],))
-                db.write_query("INSERT INTO user_tokens (id, token) VALUES (%s, %s)", (result['user_id'], token))
-            # print(result['user_id'] + "::::" + token)
-            # result = token + ":" + str(result['user_id'])
-            return 'ok'
-        else:
-            # return result
-            return 'no'
+            db.write_query(
+                "INSERT INTO users (password, e_mail, name, surname, user_class) VALUES (%s, %s, %s, %s, %s)",
+                (user_dt['password'], user_dt['e_mail'], user_dt['name'], user_dt['surname'], user_dt['class']))
+            result = db.read_once("SELECT * FROM users WHERE e_mail = %s", (user_dt['e_mail'],))
+            db.write_query("INSERT INTO user_tokens (id, token) VALUES (%s, %s)", (result['user_id'], token))
+        return f"{result['user_id']}:kjhskjdhakjhd"
 
 
 @app.route('/log_mb', methods=['GET', 'POST'])
@@ -175,6 +167,7 @@ def code():
         u_code = u_n.unique_code()
         with DBConnection() as db:
             db.write_query("INSERT INTO code_check (code, id) VALUES (%s, %s)", (u_code, 0))
+
         return u_code
 
 
@@ -190,6 +183,12 @@ def code_check():
                 result = db.read_once("SELECT * FROM users WHERE user_id_tg = %s", (user_dt['tg_id'],))
                 print(result)
                 db.write_query("UPDATE code_check SET id = %s WHERE code = %s", (result['user_id'], user_dt['code']))
+
+            code = user_dt['code']
+            id = result['user_id']
+            thread = Thread(target=launchCodespace, args=(str(id), str(code)))
+            thread.start()
+            
             return 'ok'
         else:
             return 'fall'
@@ -197,13 +196,11 @@ def code_check():
         with DBConnection() as db:
             result = db.read_once("SELECT * FROM code_check WHERE code = %s",
                                   (request.args['code'],))
-        result['vscode_url'] = 'https://google.com'
-        if result['id'] and result['vscode_url']:
-            return jsonify({'status': 'ok', 'url': result['vscode_url']})
-        elif result['id']:
-            return jsonify({'status': 'creating'})
-        else:
+        routing_cookie = result['routing_cookie']
+        if not routing_cookie: 
             return jsonify({'status': 'awaiting'})
+        else:
+            return jsonify({'status': 'ok', 'routing_cookie': routing_cookie})
 
 
-app.run(host='10.66.66.33', port=2107, debug=True)
+app.run(host='10.66.66.27', port=9003, debug=True)
